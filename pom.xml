@@ -16,7 +16,7 @@
         <java.version>11</java.version>
         <spring.boot.version>2.1.2.RELEASE</spring.boot.version>
         <spring.cloud.version>Greenwich.RELEASE</spring.cloud.version>
-        <jasypt.version>1.9.2</jasypt.version>
+        <jasypt.version>1.9.4</jasypt.version>
         <maven.compiler.version>3.8.0</maven.compiler.version>
         <start-class>Application</start-class>
     </properties>
