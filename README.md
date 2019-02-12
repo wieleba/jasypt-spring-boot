@@ -1,5 +1,5 @@
 # jasypt-spring-boot
-**[Jasypt](http://jasypt.org)** integration for Spring boot 1.4.X , 1.5.X and 2.0.X
+**[Jasypt](http://www.jasypt.org)** integration for Spring boot 1.4.X , 1.5.X and 2.0.X
 
 [![Build Status](https://travis-ci.org/ulisesbocchio/jasypt-spring-boot.svg?branch=master)](https://travis-ci.org/ulisesbocchio/jasypt-spring-boot)
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/ulisesbocchio/jasypt-spring-boot?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
@@ -24,8 +24,12 @@ There are 3 ways to integrate `jasypt-spring-boot` in your project:
 - Adding `jasypt-spring-boot` to your classpath and declaring individual encryptable property sources with `@EncrytablePropertySource`
 
 ## What's new?
-Update 7/17/2018: Version 2.1.0 Release Including [Filters](#using-filters)<br/>
-Update 3/17/2018: Version 2.0.0 has been released supporting Spring Boot 2.0.X.RELEASE. [SemVer](https://semver.org/) adopted.<br/>
+Update 1/8/2019: Version 2.1.1 Release Including [Asymmetric Encryption](#asymmetric-encryption)<br/> and support for JSB96 with IV Generators (Thanks [@melloware](https://github.com/melloware)!!)
+
+Update 7/17/2018: Version 2.1.0 Release Including [Filters](#using-filters)
+
+Update 3/17/2018: Version 2.0.0 has been released supporting Spring Boot 2.0.X.RELEASE. [SemVer](https://semver.org/) adopted.
+
 Update 7/18/2015: `jasypt-spring-boot` is now in Maven Central!<br/>
 
 ## What to do First?
@@ -37,7 +41,7 @@ Use one of the following 3 methods (briefly explained above):
     <dependency>
             <groupId>com.github.ulisesbocchio</groupId>
             <artifactId>jasypt-spring-boot-starter</artifactId>
-            <version>2.1.0</version>
+            <version>2.1.1</version>
     </dependency>
 	```
 2. IF you don't use `@SpringBootApplication` or `@EnableAutoConfiguration` Auto Configuration annotations then add this dependency to your project:
@@ -46,7 +50,7 @@ Use one of the following 3 methods (briefly explained above):
     <dependency>
             <groupId>com.github.ulisesbocchio</groupId>
             <artifactId>jasypt-spring-boot</artifactId>
-            <version>2.1.0</version>
+            <version>2.1.1</version>
     </dependency>
 	```
 
@@ -147,7 +151,7 @@ And your encrypted.properties file would look something like this:
 Now when you do `environment.getProperty("secret.property")` or use `@Value("${secret.property}")` what you get is the decrypted version of `secret.property`.<br/>
 When using METHOD 3 (`@EncryptablePropertySource`) then you can access the encrypted properties the same way, the only difference is that you must put the properties in the resource that was declared within the `@EncryptablePropertySource` annotation so that the properties can be decrypted properly.
 
-## Encryption Configuration
+## Password-based Encryption Configuration
 Jasypt uses an `StringEncryptor` to decrypt properties. For all 3 methods, if no custom `StringEncryptor` (see the [Custom Encryptor](#customEncryptor) section for details) is found in the Spring Context, one is created automatically that can be configured through the following properties (System, properties file, command line arguments, environment variable, etc.):
 
 <table border="1">
@@ -176,6 +180,9 @@ Jasypt uses an `StringEncryptor` to decrypt properties. For all 3 methods, if no
           <td>jasypt.encryptor.saltGeneratorClassname</td><td>False</td><td>org.jasypt.salt.RandomSaltGenerator</td>
       </tr>
       <tr>
+          <td>jasypt.encryptor.ivGeneratorClassname</td><td>False</td><td>org.jasypt.salt.NoOpIVGenerator</td>
+      </tr>
+      <tr>
           <td>jasypt.encryptor.stringOutputType</td><td>False</td><td>base64</td>
       </tr>
       <tr>
@@ -186,6 +193,8 @@ Jasypt uses an `StringEncryptor` to decrypt properties. For all 3 methods, if no
 The only property required is the encryption password, the rest could be left to use default values. While all this properties could be declared in a properties file, the encryptor password should not be stored in a property file, it should rather be passed as system property, command line argument, or environment variable and as far as its name is `jasypt.encryptor.password` it'll work.<br/>
 
 The last property, `jasypt.encryptor.proxyPropertySources` is used to indicate `jasyp-spring-boot` how property values are going to be intercepted for decryption. The default value, `false` uses custom wrapper implementations of `PropertySource`, `EnumerablePropertySource`, and `MapPropertySource`. When `true` is specified for this property, the interception mechanism will use CGLib proxies on each specific `PropertySource` implementation. This may be useful on some scenarios where the type of the original `PropertySource` must be preserved. 
+
+The property `jasypt.encryptor.ivGeneratorClassname` defaults to NoOpIVGenerator for backwards compatibility. However, if you would like to use the newer algorithms in Java 8+ (e.g. PBEWITHHMACSHA512ANDAES_256) you must set this value to `org.jasypt.salt.RandomIVGenerator`.
 
 ## <a name="customEncryptor"></a>Use you own Custom Encryptor
 For custom configuration of the encryptor and the source of the encryptor password you can always define your own StringEncryptor bean in your Spring Context, and the default encryptor will be ignored. For instance:
@@ -201,6 +210,7 @@ For custom configuration of the encryptor and the source of the encryptor passwo
         config.setPoolSize("1");
         config.setProviderName("SunJCE");
         config.setSaltGeneratorClassName("org.jasypt.salt.RandomSaltGenerator");
+        config.setIvGeneratorClassName("org.jasypt.salt.NoOpIVGenerator");
         config.setStringOutputType("base64");
         encryptor.setConfig(config);
         return encryptor;
@@ -302,6 +312,7 @@ Example:
             config.setPoolSize(1);
             config.setProviderName("SunJCE");
             config.setSaltGeneratorClassName("org.jasypt.salt.RandomSaltGenerator");
+            config.setIvGeneratorClassName("org.jasypt.salt.NoOpIVGenerator");
             config.setStringOutputType("base64");
             encryptor.setConfig(config);
         }
@@ -345,7 +356,7 @@ By default, the `DefaultPropertyResolver` uses `DefaultPropertyFilter`, which al
 * jasypt.encryptor.property.filter.include-names: Specify the property name patterns to be included for decryption
 * jasypt.encryptor.property.filter.exclude-names: Specify the property name patterns to be EXCLUDED for decryption
 
-### Provide a custom `EncrpytablePropertyFilter`
+### Provide a custom `EncryptablePropertyFilter`
 
 You can override the default implementation by providing a Bean of type `EncryptablePropertyFilter` with name `encryptablePropertyFilter` or if you wanna provide
 your own bean name, override property `jasypt.encryptor.property.filter-bean` and specify the name you wanna give the bean. When providing this, you'll be responsible for
@@ -371,6 +382,151 @@ Example:
 Notice that for this mechanism to work, you should not provide a custom `EncryptablePropertyResolver` and use the default
 resolver instead. If you provide custom resolver, you are responsible for the entire process of detecting and decrypting
 properties.
+
+## Asymmetric Encryption
+`jasypt-spring-boot:2.1.1` introduces a new feature to encrypt/decrypt properties using asymmetric encryption with a pair of private/public keys
+in DER or PEM formats.
+
+### Config Properties
+
+The following are the configuration properties you can use to config asymmetric decryption of properties;
+
+<table border="1">
+      <tr>
+          <td>Key</td><td>Default Value</td><td>Description</td>
+      </tr>
+      <tr>
+          <td>jasypt.encryptor.privateKeyString</td><td>null</td><td> private key for decryption in String format</td>
+      </tr>
+      <tr>
+          <td>jasypt.encryptor.privateKeyLocation</td><td>null</td><td>location of the private key for decryption in spring resource format</td>
+      </tr>
+      <tr>
+          <td>jasypt.encryptor.privateKeyFormat</td><td>DER</td><td>Key format. DER or PEM</td>
+      </tr>
+  </table>
+  
+  You should either use `privateKeyString` or `privateKeyLocation`, the String format takes precedence if set.
+  To specify a private key in DER format with `privateKeyString`, please encode the key bytes to `base64`.
+  
+  __Note__ that `jasypt.encryptor.password` still takes precedences for PBE encryption over the asymmetric config. 
+
+### Sample config
+
+#### DER key as string
+```yaml
+jasypt:
+    encryptor:
+      privateKeyString: MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCtB/IYK8E52CYMZTpyIY9U0HqMewyKnRvSo6s+9VNIn/HSh9+MoBGiADa2MaPKvetS3CD3CgwGq/+LIQ1HQYGchRrSORizOcIp7KBx+Wc1riatV/tcpcuFLC1j6QJ7d2I+T7RA98Sx8X39orqlYFQVysTw/aTawX/yajx0UlTW3rNAY+ykeQ0CBHowtTxKM9nGcxLoQbvbYx1iG9JgAqye7TYejOpviOH+BpD8To2S8zcOSojIhixEfayay0gURv0IKJN2LP86wkpAuAbL+mohUq1qLeWdTEBrIRXjlnrWs1M66w0l/6JwaFnGOqEB6haMzE4JWZULYYpr2yKyoGCRAgMBAAECggEAQxURhs1v3D0wgx27ywO3zeoFmPEbq6G9Z6yMd5wk7cMUvcpvoNVuAKCUlY4pMjDvSvCM1znN78g/CnGF9FoxJb106Iu6R8HcxOQ4T/ehS+54kDvL999PSBIYhuOPUs62B/Jer9FfMJ2veuXb9sGh19EFCWlMwILEV/dX+MDyo1qQaNzbzyyyaXP8XDBRDsvPL6fPxL4r6YHywfcPdBfTc71/cEPksG8ts6um8uAVYbLIDYcsWopjVZY/nUwsz49xBCyRcyPnlEUJedyF8HANfVEO2zlSyRshn/F+rrjD6aKBV/yVWfTEyTSxZrBPl4I4Tv89EG5CwuuGaSagxfQpAQKBgQDXEe7FqXSaGk9xzuPazXy8okCX5pT6545EmqTP7/JtkMSBHh/xw8GPp+JfrEJEAJJl/ISbdsOAbU+9KAXuPmkicFKbodBtBa46wprGBQ8XkR4JQoBFj1SJf7Gj9ozmDycozO2Oy8a1QXKhHUPkbPQ0+w3efwoYdfE67ZodpFNhswKBgQDN9eaYrEL7YyD7951WiK0joq0BVBLK3rwO5+4g9IEEQjhP8jSo1DP+zS495t5ruuuuPsIeodA79jI8Ty+lpYqqCGJTE6muqLMJDiy7KlMpe0NZjXrdSh6edywSz3YMX1eAP5U31pLk0itMDTf2idGcZfrtxTLrpRffumowdJ5qqwKBgF+XZ+JRHDN2aEM0atAQr1WEZGNfqG4Qx4o0lfaaNs1+H+knw5kIohrAyvwtK1LgUjGkWChlVCXb8CoqBODMupwFAqKL/IDImpUhc/t5uiiGZqxE85B3UWK/7+vppNyIdaZL13a1mf9sNI/p2whHaQ+3WoW/P3R5z5uaifqM1EbDAoGAN584JnUnJcLwrnuBx1PkBmKxfFFbPeSHPzNNsSK3ERJdKOINbKbaX+7DlT4bRVbWvVj/jcw/c2Ia0QTFpmOdnivjefIuehffOgvU8rsMeIBsgOvfiZGx0TP3+CCFDfRVqjIBt3HAfAFyZfiP64nuzOERslL2XINafjZW5T0pZz8CgYAJ3UbEMbKdvIuK+uTl54R1Vt6FO9T5bgtHR4luPKoBv1ttvSC6BlalgxA0Ts/AQ9tCsUK2JxisUcVgMjxBVvG0lfq/EHpL0Wmn59SHvNwtHU2qx3Ne6M0nQtneCCfR78OcnqQ7+L+3YCMqYGJHNFSard+dewfKoPnWw0WyGFEWCg==
+
+```
+
+#### DER key as a resource location
+```yaml
+jasypt:
+    encryptor:
+      privateKeyLocation: classpath:private_key.der
+
+```
+
+#### PEM key as string
+```yaml
+jasypt:
+    encryptor:
+      privateKeyFormat: PEM
+      privateKeyString: |-
+          -----BEGIN PRIVATE KEY-----
+          MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCtB/IYK8E52CYM
+          ZTpyIY9U0HqMewyKnRvSo6s+9VNIn/HSh9+MoBGiADa2MaPKvetS3CD3CgwGq/+L
+          IQ1HQYGchRrSORizOcIp7KBx+Wc1riatV/tcpcuFLC1j6QJ7d2I+T7RA98Sx8X39
+          orqlYFQVysTw/aTawX/yajx0UlTW3rNAY+ykeQ0CBHowtTxKM9nGcxLoQbvbYx1i
+          G9JgAqye7TYejOpviOH+BpD8To2S8zcOSojIhixEfayay0gURv0IKJN2LP86wkpA
+          uAbL+mohUq1qLeWdTEBrIRXjlnrWs1M66w0l/6JwaFnGOqEB6haMzE4JWZULYYpr
+          2yKyoGCRAgMBAAECggEAQxURhs1v3D0wgx27ywO3zeoFmPEbq6G9Z6yMd5wk7cMU
+          vcpvoNVuAKCUlY4pMjDvSvCM1znN78g/CnGF9FoxJb106Iu6R8HcxOQ4T/ehS+54
+          kDvL999PSBIYhuOPUs62B/Jer9FfMJ2veuXb9sGh19EFCWlMwILEV/dX+MDyo1qQ
+          aNzbzyyyaXP8XDBRDsvPL6fPxL4r6YHywfcPdBfTc71/cEPksG8ts6um8uAVYbLI
+          DYcsWopjVZY/nUwsz49xBCyRcyPnlEUJedyF8HANfVEO2zlSyRshn/F+rrjD6aKB
+          V/yVWfTEyTSxZrBPl4I4Tv89EG5CwuuGaSagxfQpAQKBgQDXEe7FqXSaGk9xzuPa
+          zXy8okCX5pT6545EmqTP7/JtkMSBHh/xw8GPp+JfrEJEAJJl/ISbdsOAbU+9KAXu
+          PmkicFKbodBtBa46wprGBQ8XkR4JQoBFj1SJf7Gj9ozmDycozO2Oy8a1QXKhHUPk
+          bPQ0+w3efwoYdfE67ZodpFNhswKBgQDN9eaYrEL7YyD7951WiK0joq0BVBLK3rwO
+          5+4g9IEEQjhP8jSo1DP+zS495t5ruuuuPsIeodA79jI8Ty+lpYqqCGJTE6muqLMJ
+          Diy7KlMpe0NZjXrdSh6edywSz3YMX1eAP5U31pLk0itMDTf2idGcZfrtxTLrpRff
+          umowdJ5qqwKBgF+XZ+JRHDN2aEM0atAQr1WEZGNfqG4Qx4o0lfaaNs1+H+knw5kI
+          ohrAyvwtK1LgUjGkWChlVCXb8CoqBODMupwFAqKL/IDImpUhc/t5uiiGZqxE85B3
+          UWK/7+vppNyIdaZL13a1mf9sNI/p2whHaQ+3WoW/P3R5z5uaifqM1EbDAoGAN584
+          JnUnJcLwrnuBx1PkBmKxfFFbPeSHPzNNsSK3ERJdKOINbKbaX+7DlT4bRVbWvVj/
+          jcw/c2Ia0QTFpmOdnivjefIuehffOgvU8rsMeIBsgOvfiZGx0TP3+CCFDfRVqjIB
+          t3HAfAFyZfiP64nuzOERslL2XINafjZW5T0pZz8CgYAJ3UbEMbKdvIuK+uTl54R1
+          Vt6FO9T5bgtHR4luPKoBv1ttvSC6BlalgxA0Ts/AQ9tCsUK2JxisUcVgMjxBVvG0
+          lfq/EHpL0Wmn59SHvNwtHU2qx3Ne6M0nQtneCCfR78OcnqQ7+L+3YCMqYGJHNFSa
+          rd+dewfKoPnWw0WyGFEWCg==
+          -----END PRIVATE KEY-----
+
+```
+
+#### PEM key as a resource location
+```yaml
+jasypt:
+    encryptor:
+      privateKeyFormat: PEM
+      privateKeyLocation: classpath:private_key.pem
+
+```
+
+### Encrypting properties
+
+There is no program/command to encrypt properties using asymmetric keys but you can use the following code snippet to encrypt
+your properties:
+
+#### DER Format
+
+```java
+import com.ulisesbocchio.jasyptspringboot.encryptor.SimpleAsymmetricConfig;
+import com.ulisesbocchio.jasyptspringboot.encryptor.SimpleAsymmetricStringEncryptor;
+import org.jasypt.encryption.StringEncryptor;
+
+public class PropertyEncryptor {
+    public static void main(String[] args) {
+        SimpleAsymmetricConfig config = new SimpleAsymmetricConfig();
+        config.setPublicKey("MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArQfyGCvBOdgmDGU6ciGPVNB6jHsMip0b0qOrPvVTSJ/x0offjKARogA2tjGjyr3rUtwg9woMBqv/iyENR0GBnIUa0jkYsznCKeygcflnNa4mrVf7XKXLhSwtY+kCe3diPk+0QPfEsfF9/aK6pWBUFcrE8P2k2sF/8mo8dFJU1t6zQGPspHkNAgR6MLU8SjPZxnMS6EG722MdYhvSYAKsnu02Hozqb4jh/gaQ/E6NkvM3DkqIyIYsRH2smstIFEb9CCiTdiz/OsJKQLgGy/pqIVKtai3lnUxAayEV45Z61rNTOusNJf+icGhZxjqhAeoWjMxOCVmVC2GKa9sisqBgkQIDAQAB");
+        StringEncryptor encryptor = new SimpleAsymmetricStringEncryptor(config);
+        String message = "chupacabras";
+        String encrypted = encryptor.encrypt(message);
+        System.out.printf("Encrypted message %s\n", encrypted);
+    }
+}
+```
+
+#### PEM Format
+
+```java
+import com.ulisesbocchio.jasyptspringboot.encryptor.SimpleAsymmetricConfig;
+import com.ulisesbocchio.jasyptspringboot.encryptor.SimpleAsymmetricStringEncryptor;
+import org.jasypt.encryption.StringEncryptor;
+import static com.ulisesbocchio.jasyptspringboot.util.AsymmetricCryptography.KeyFormat.PEM;
+
+public class PropertyEncryptor {
+    public static void main(String[] args) {
+        SimpleAsymmetricConfig config = new SimpleAsymmetricConfig();
+        config.setKeyFormat(PEM);
+        config.setPublicKey("-----BEGIN PUBLIC KEY-----\n" +
+                "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArQfyGCvBOdgmDGU6ciGP\n" +
+                "VNB6jHsMip0b0qOrPvVTSJ/x0offjKARogA2tjGjyr3rUtwg9woMBqv/iyENR0GB\n" +
+                "nIUa0jkYsznCKeygcflnNa4mrVf7XKXLhSwtY+kCe3diPk+0QPfEsfF9/aK6pWBU\n" +
+                "FcrE8P2k2sF/8mo8dFJU1t6zQGPspHkNAgR6MLU8SjPZxnMS6EG722MdYhvSYAKs\n" +
+                "nu02Hozqb4jh/gaQ/E6NkvM3DkqIyIYsRH2smstIFEb9CCiTdiz/OsJKQLgGy/pq\n" +
+                "IVKtai3lnUxAayEV45Z61rNTOusNJf+icGhZxjqhAeoWjMxOCVmVC2GKa9sisqBg\n" +
+                "kQIDAQAB\n" +
+                "-----END PUBLIC KEY-----\n");
+        StringEncryptor encryptor = new SimpleAsymmetricStringEncryptor(config);
+        String message = "chupacabras";
+        String encrypted = encryptor.encrypt(message);
+        System.out.printf("Encrypted message %s\n", encrypted);
+    }
+}
+```
 
 ## Demo App
 The [jasypt-spring-boot-demo-samples](https://github.com/ulisesbocchio/jasypt-spring-boot-samples) repo contains working Spring Boot app examples.
