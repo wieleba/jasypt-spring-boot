@@ -1,9 +1,6 @@
 package com.ulisesbocchio.jasyptspringboot;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-
+import com.ulisesbocchio.jasyptspringboot.configuration.EnableEncryptablePropertiesBeanFactoryPostProcessor;
 import org.junit.After;
 import org.junit.Test;
 import org.springframework.boot.WebApplicationType;
@@ -16,7 +13,7 @@ import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 
-import com.ulisesbocchio.jasyptspringboot.configuration.EnableEncryptablePropertiesBeanFactoryPostProcessor;
+import static org.junit.Assert.*;
 
 /**
  * @author Fahim Farook
@@ -117,7 +114,7 @@ public class BootstrappingJasyptConfigurationTest {
 			// order should be greater than
 			// BootstrapApplicationListener.DEFAULT_ORDER - so that this
 			// listener is invoked after BootstrapApplicationListener, otherwise
-			// bootstrap.propertis will not have been read. This is required
+			// bootstrap.properties will not have been read. This is required
 			// since encrypted text (i.e.
 			// passwords) could be configured in bootstrap.properties.
 			return BootstrapApplicationListener.DEFAULT_ORDER + 1;

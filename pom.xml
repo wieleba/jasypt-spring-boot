@@ -195,7 +195,7 @@
                 <version>${spring.boot.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.jasypt</groupId>
+                <groupId>com.melloware</groupId>
                 <artifactId>jasypt</artifactId>
                 <version>${jasypt.version}</version>
             </dependency>
